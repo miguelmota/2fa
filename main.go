@@ -90,12 +90,14 @@ var (
 	flag7    = flag.Bool("7", false, "generate 7-digit code")
 	flag8    = flag.Bool("8", false, "generate 8-digit code")
 	flagClip = flag.Bool("clip", false, "copy code to the clipboard")
+	flagGen  = flag.Bool("gen", false, "generate token")
 )
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage:\n")
 	fmt.Fprintf(os.Stderr, "\t2fa -add [-7] [-8] [-hotp] keyname\n")
 	fmt.Fprintf(os.Stderr, "\t2fa -list\n")
+	fmt.Fprintf(os.Stderr, "\t2fa -gen [-7] [-8] secret\n")
 	fmt.Fprintf(os.Stderr, "\t2fa [-clip] keyname\n")
 	os.Exit(2)
 }
@@ -113,6 +115,20 @@ func main() {
 			usage()
 		}
 		k.list()
+		return
+	}
+	if *flagGen {
+		if flag.NArg() == 0 {
+			usage()
+		}
+		secret := flag.Arg(0)
+		size := codeSize()
+		raw, err := decodeKey(sanitizeSecretText(secret))
+		if err != nil {
+			log.Fatal(err)
+		}
+		code := totp(raw, time.Now(), size)
+		fmt.Println(code)
 		return
 	}
 	if flag.NArg() == 0 && !*flagAdd {
@@ -139,12 +155,14 @@ func main() {
 	k.show(name)
 }
 
+// Keychain ...
 type Keychain struct {
 	file string
 	data []byte
 	keys map[string]Key
 }
 
+// Key ...
 type Key struct {
 	raw    []byte
 	digits int
@@ -224,7 +242,16 @@ func noSpace(r rune) rune {
 	return r
 }
 
-func (c *Keychain) add(name string) {
+func padSecretText(key string) string {
+	key += strings.Repeat("=", -len(key)&7) // pad to 8 bytes
+	return key
+}
+
+func sanitizeSecretText(key string) string {
+	return padSecretText(strings.Map(noSpace, key))
+}
+
+func codeSize() int {
 	size := 6
 	if *flag7 {
 		size = 7
@@ -235,13 +262,18 @@ func (c *Keychain) add(name string) {
 		size = 8
 	}
 
+	return size
+}
+
+func (c *Keychain) add(name string) {
+	size := codeSize()
+
 	fmt.Fprintf(os.Stderr, "2fa key for %s: ", name)
 	text, err := bufio.NewReader(os.Stdin).ReadString('\n')
 	if err != nil {
 		log.Fatalf("error reading key: %v", err)
 	}
-	text = strings.Map(noSpace, text)
-	text += strings.Repeat("=", -len(text)&7) // pad to 8 bytes
+	text = sanitizeSecretText(text)
 	if _, err := decodeKey(text); err != nil {
 		log.Fatalf("invalid key: %v", err)
 	}

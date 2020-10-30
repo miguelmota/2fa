@@ -6,6 +6,7 @@ Usage:
 
     2fa -add [-7] [-8] [-hotp] name
     2fa -list
+    2fa -gen secret
     2fa name
 
 `2fa -add name` adds a new key to the 2fa keychain with the given name. It
@@ -24,6 +25,8 @@ By default the new key generates 6-digit codes; the `-7` and `-8` flags select
 `2fa name` prints a two-factor authentication code from the key with the
 given name. If `-clip` is specified, `2fa` also copies to the code to the system
 clipboard.
+
+`2fa -gen secret` generates a TOTP code using the supplied secret.
 
 With no arguments, `2fa` prints two-factor authentication codes from all
 known time-based keys.
@@ -56,4 +59,4 @@ Or to type less:
 
     $ 2fa
     268346	github
-    $ 
+    $
